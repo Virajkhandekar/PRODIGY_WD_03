@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tic Tac Toe</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    #scoreboard {
+      margin: 10px 0;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    #game-container {
+      position: relative;
+      width: 320px;
+      height: 320px;
+    }
+
+    #game {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 5px;
+    }
+
+    .cell {
+      width: 100px;
+      height: 100px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 32px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .cell:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .X {
+      color: #ff5f6d;
+    }
+
+    .O {
+      color: #5fffa7;
+    }
+
+    #controls {
+      margin-top: 10px;
+    }
+
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    #win-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 320px;
+      pointer-events: none;
+    }
+
+    #win-line line {
+      stroke: yellow;
+      stroke-width: 6;
+      stroke-linecap: round;
+    }
+
+    #popup {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    #popup-content {
+      background: white;
+      color: black;
+      padding: 20px 40px;
+      border-radius: 10px;
+      font-size: 24px;
+      font-weight: bold;
+      text-align: center;
+      animation: pop 0.3s ease-in-out;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.5); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Tic Tac Toe</h1>
+  <div id="scoreboard">X: 0 | O: 0</div>
+  <div id="game-container">
+    <svg id="win-line"></svg>
+    <div id="game"></div>
+  </div>
+  <div id="controls">
+    <button id="reset">Reset</button>
+    <button id="toggle">Play vs AI</button>
+  </div>
+  <div id="status">Player X's Turn</div>
+
+  <div id="popup">
+    <div id="popup-content"></div>
+  </div>
+
+  <script>
+    const gameBoard = document.getElementById("game");
+    const statusText = document.getElementById("status");
+    const resetBtn = document.getElementById("reset");
+    const toggleBtn = document.getElementById("toggle");
+    const scoreboard = document.getElementById("scoreboard");
+    const winLine = document.getElementById("win-line");
+    const popup = document.getElementById("popup");
+    const popupContent = document.getElementById("popup-content");
+
+    let cells = Array(9).fill("");
+    let currentPlayer = "X";
+    let isGameOver = false;
+    let vsAI = false;
+    let scores = { X: 0, O: 0 };
+
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement("div");
+      cell.classList.add("cell");
+      cell.dataset.index = i;
+      cell.addEventListener("click", handleClick);
+      gameBoard.appendChild(cell);
+    }
+
+    function handleClick(e) {
+      const index = e.target.dataset.index;
+      if (cells[index] || isGameOver) return;
+
+      cells[index] = currentPlayer;
+      e.target.textContent = currentPlayer;
+      e.target.classList.add(currentPlayer);
+
+      const winCombo = checkWin(currentPlayer);
+      if (winCombo) {
+        scores[currentPlayer]++;
+        updateScoreboard();
+        drawWinLine(winCombo);
+        showPopup(`🎉 Player ${currentPlayer} Wins!`);
+        isGameOver = true;
+        return;
+      } else if (cells.every(cell => cell !== "")) {
+        showPopup("🤝 It's a Draw!");
+        isGameOver = true;
+        return;
+      }
+
+      currentPlayer = currentPlayer === "X" ? "O" : "X";
+      statusText.textContent = `Player ${currentPlayer}'s Turn`;
+
+      if (vsAI && currentPlayer === "O") {
+        setTimeout(aiMove, 500);
+      }
+    }
+
+    function aiMove() {
+      let available = cells.map((val, i) => val === "" ? i : null).filter(v => v !== null);
+      if (available.length === 0) return;
+      let move = available[Math.floor(Math.random() * available.length)];
+      const cellDiv = document.querySelector(`[data-index='${move}']`);
+      handleClick({ target: cellDiv });
+    }
+
+    function checkWin(player) {
+      const wins = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (let comb of wins) {
+        if (comb.every(i => cells[i] === player)) {
+          return comb;
+        }
+      }
+      return null;
+    }
+
+    function updateScoreboard() {
+      scoreboard.textContent = `X: ${scores.X} | O: ${scores.O}`;
+    }
+
+    function drawWinLine(combo) {
+      const positions = [
+        {x:50, y:50}, {x:160, y:50}, {x:270, y:50},
+        {x:50, y:160}, {x:160, y:160}, {x:270, y:160},
+        {x:50, y:270}, {x:160, y:270}, {x:270, y:270}
+      ];
+      const [a,b,c] = combo;
+      const start = positions[a];
+      const end = positions[c];
+      winLine.innerHTML = `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}"/>`;
+    }
+
+    function showPopup(message) {
+      popupContent.textContent = message;
+      popup.style.display = "flex";
+      setTimeout(() => { popup.style.display = "none"; }, 2000);
+    }
+
+    resetBtn.addEventListener("click", () => {
+      cells.fill("");
+      document.querySelectorAll(".cell").forEach(cell => {
+        cell.textContent = "";
+        cell.classList.remove("X", "O");
+      });
+      currentPlayer = "X";
+      isGameOver = false;
+      statusText.textContent = "Player X's Turn";
+      winLine.innerHTML = "";
+      popup.style.display = "none";
+    });
+
+    toggleBtn.addEventListener("click", () => {
+      vsAI = !vsAI;
+      toggleBtn.textContent = vsAI ? "Play 2 Players" : "Play vs AI";
+      resetBtn.click();
+    });
+  </script>
+</body>
+</html>
